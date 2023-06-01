@@ -1,7 +1,7 @@
 Redis Sentinel Cache Store for Moodle
 =====================================
 
-This is an adaptation of core Redis Cache store of Moodle 4.1 LTS using Redis Sentinel Catalyst code from [Catalyst] (https://github.com/catalyst/moodle-cachestore_redissentinel).
+This is an adaptation of core Redis Cache store of Moodle 4.1 LTS using Redis Sentinel Catalyst code from [Catalyst](https://github.com/catalyst/moodle-cachestore_redissentinel).
 
 This plugin requires the [PhpRedis](https://github.com/nicolasff/phpredis) extension.  The PhpRedis extension can be installed via PECL with `pecl install redis`.
 

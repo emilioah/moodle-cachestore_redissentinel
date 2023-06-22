@@ -22,7 +22,7 @@ namespace cachestore_redissentinel;
  * If you wish to use these unit tests all you need to do is add the following definition to
  * your config.php file.
  *
- * define('TEST_cachestore_redissentinel_TESTSERVERS', '127.0.0.1');
+ * define('TEST_CACHESTORE_REDIS_TESTSERVERS', '127.0.0.1');
  *
  * @package cachestore_redissentinel
  * @copyright 2021 The Open University
@@ -36,7 +36,7 @@ class ttl_test extends \advanced_testcase {
     public function setUp(): void {
         // Make sure cachestore_redissentinel is available.
         require_once(__DIR__ . '/../lib.php');
-        if (!\cachestore_redissentinel::are_requirements_met() || !defined('TEST_cachestore_redissentinel_TESTSERVERS')) {
+        if (!\cachestore_redissentinel::are_requirements_met() || !defined('TEST_CACHESTORE_REDISSENTINEL_TESTSERVERS')) {
             $this->markTestSkipped('Could not test cachestore_redissentinel. Requirements are not met.');
         }
 

@@ -121,6 +121,15 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
      */
     protected $lastiobytes = 0;
 
+    /** @var int Maximum number of seconds to wait for a lock before giving up. */
+    protected $lockwait = 60;
+
+    /** @var int Timeout before lock is automatically released (in case of crashes) */
+    protected $locktimeout = 600;
+
+    /** @var ?array Array of current locks, or null if we haven't registered shutdown function */
+    protected $currentlocks = null;
+
     /**
      * Determines if the requirements for this type of store are met.
      *
@@ -197,6 +206,12 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
 
         $password = !empty($configuration['password']) ? $configuration['password'] : '';
         $prefix = !empty($configuration['prefix']) ? $configuration['prefix'] : '';
+        if (array_key_exists('lockwait', $configuration)) {
+            $this->lockwait = (int)$configuration['lockwait'];
+        }
+        if (array_key_exists('locktimeout', $configuration)) {
+            $this->locktimeout = (int)$configuration['locktimeout'];
+        }
         $this->redis = $this->new_redis($server, $prefix, $password);
     }
 
@@ -209,17 +224,17 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
      * @param string $password The server connection password
      * @return Redis
      */
-    protected function new_redis($server, $prefix = '', $password = '') {        
+    protected function new_redis($server, $prefix = '', $password = '') {
         $redis = new Redis();
-        // Check if it isn't a Unix socket to set default port.                
+        // Check if it isn't a Unix socket to set default port.
         $port = ($server[0] === '/') ? null : 6379;
         if (strpos($server, ':')) {
             $serverconf = explode(':', $server);
             $server = $serverconf[0];
             $port = $serverconf[1];
-        }                
+        }
 
-        try {            
+        try {
             if ($redis->connect($server, $port)) {
                 if (!empty($password)) {
                     $redis->auth($password);
@@ -237,7 +252,7 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
             }
         } catch (\RedisException $e) {
             $this->isready = false;
-        }        
+        }
 
         return $redis;
     }
@@ -542,7 +557,38 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
      * @return bool True if the lock was acquired, false if it was not.
      */
     public function acquire_lock($key, $ownerid) {
-        return $this->redis->setnx($key, $ownerid);
+        $timelimit = time() + $this->lockwait;
+        do {
+            // If the key doesn't already exist, grab it and return true.
+            if ($this->redis->setnx($key, $ownerid)) {
+                // Ensure Redis deletes the key after a bit in case something goes wrong.
+                $this->redis->expire($key, $this->locktimeout);
+                // If we haven't got it already, better register a shutdown function.
+                if ($this->currentlocks === null) {
+                    core_shutdown_manager::register_function([$this, 'shutdown_release_locks']);
+                    $this->currentlocks = [];
+                }
+                $this->currentlocks[$key] = $ownerid;
+                return true;
+            }
+            // Wait 1 second then retry.
+            sleep(1);
+        } while (time() < $timelimit);
+        return false;
+    }
+
+    /**
+     * Releases any locks when the system shuts down, in case there is a crash or somebody forgets
+     * to use 'try-finally'.
+     *
+     * Do not call this function manually (except from unit test).
+     */
+    public function shutdown_release_locks() {
+        foreach ($this->currentlocks as $key => $ownerid) {
+            debugging('Automatically releasing Redis cache lock: ' . $key . ' (' . $ownerid .
+                    ') - did somebody forget to call release_lock()?', DEBUG_DEVELOPER);
+            $this->release_lock($key, $ownerid);
+        }
     }
 
     /**
@@ -556,7 +602,7 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
      */
     public function check_lock_state($key, $ownerid) {
         $result = $this->redis->get($key);
-        if ($result === $ownerid) {
+        if ($result === (string)$ownerid) {
             return true;
         }
         if ($result === false) {
@@ -601,6 +647,7 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
      */
     public function release_lock($key, $ownerid) {
         if ($this->check_lock_state($key, $ownerid)) {
+            unset($this->currentlocks[$key]);
             return ($this->redis->del($key) !== false);
         }
         return false;
@@ -796,10 +843,10 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
         global $DB;
 
         if (!self::are_requirements_met() || !self::ready_to_be_used_for_testing()) {
-            throw new moodle_exception('TEST_cachestore_redissentinel_TESTSERVERS not configured, unable to create test configuration');
+            throw new moodle_exception('TEST_CACHESTORE_REDISSENTINEL_TESTSERVERS not configured, unable to create test configuration');
         }
 
-        return ['server' => TEST_cachestore_redissentinel_TESTSERVERS,
+        return ['server' => TEST_CACHESTORE_REDISSENTINEL_TESTSERVERS,
                 'prefix' => $DB->get_prefix(),
         ];
     }
@@ -807,12 +854,12 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
     /**
      * Returns true if this cache store instance is both suitable for testing, and ready for testing.
      *
-     * When TEST_cachestore_redissentinel_TESTSERVERS is set, then we are ready to be use d for testing.
+     * When TEST_CACHESTORE_REDISSENTINEL_TESTSERVERS is set, then we are ready to be use d for testing.
      *
      * @return bool
      */
     public static function ready_to_be_used_for_testing() {
-        return defined('TEST_cachestore_redissentinel_TESTSERVERS');
+        return defined('TEST_CACHESTORE_REDISSENTINEL_TESTSERVERS');
     }
 
     /**

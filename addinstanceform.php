@@ -15,18 +15,6 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Redis Cache Store - Add instance form
- *
- * @package   cachestore_redissentinel
- * @copyright 2013 Adam Durana
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-defined('MOODLE_INTERNAL') || die();
-
-require_once($CFG->dirroot.'/cache/forms.php');
-
-/**
  * Form for adding instance of Redis Cache Store.
  *
  * @copyright   2013 Adam Durana
@@ -39,7 +27,12 @@ class cachestore_redissentinel_addinstance_form extends cachestore_addinstance_f
     protected function configuration_definition() {
         $form = $this->_form;
 
-        $form->addElement('text', 'server', get_string('server', 'cachestore_redissentinel'), array('size' => 24));
+        $form->addElement('advcheckbox', 'clustermode', get_string('clustermode', 'cachestore_redis'), '',
+            cache_helper::is_cluster_available() ? '' : 'disabled');
+        $form->addHelpButton('clustermode', 'clustermode', 'cachestore_redis');
+        $form->setType('clustermode', PARAM_BOOL);
+
+        $form->addElement('textarea', 'server', get_string('server', 'cachestore_redissentinel'), ['cols' => 6, 'rows' => 10);
         $form->setType('server', PARAM_TEXT);
         $form->addHelpButton('server', 'server', 'cachestore_redissentinel');
         $form->addRule('server', get_string('required'), 'required');
@@ -48,6 +41,16 @@ class cachestore_redissentinel_addinstance_form extends cachestore_addinstance_f
         $form->setType('master_group', PARAM_TEXT);
         $form->addRule('master_group', get_string('required'), 'required');
         $form->setDefault('master_group', 'mymaster');
+
+        $form->addElement('advcheckbox', 'encryption', get_string('encrypt_connection', 'cachestore_redissentinel'));
+        $form->setType('encryption', PARAM_BOOL);
+        $form->addHelpButton('encryption', 'encrypt_connection', 'cachestore_redissentinel');
+
+        $form->addElement('text', 'cafile', get_string('ca_file', 'cachestore_redissentinel'));
+        $form->setType('cafile', PARAM_TEXT);
+        $form->addHelpButton('cafile', 'ca_file', 'cachestore_redissentinel');
+
+
 
         $form->addElement('passwordunmask', 'password', get_string('password', 'cachestore_redissentinel'));
         $form->setType('password', PARAM_RAW);
@@ -69,5 +72,10 @@ class cachestore_redissentinel_addinstance_form extends cachestore_addinstance_f
         $form->addHelpButton('compressor', 'usecompressor', 'cachestore_redissentinel');
         $form->setDefault('compressor', cachestore_redissentinel::COMPRESSOR_NONE);
         $form->setType('compressor', PARAM_INT);
+
+        $form->addElement('text', 'connectiontimeout', get_string('connectiontimeout', 'cachestore_redisentinel'));
+        $form->addHelpButton('connectiontimeout', 'connectiontimeout', 'cachestore_redissentinel');
+        $form->setDefault('connectiontimeout', cachestore_redissentinel::CONNECTION_TIMEOUT);
+        $form->setType('connectiontimeout', PARAM_INT);
     }
 }

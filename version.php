@@ -18,13 +18,13 @@
  * Redis Sentinel Cache Store - Version information
  *
  * @package   cachestore_redissentinel
- * @copyright 2023 Emilio Arjona
+ * @copyright 2025 Emilio Arjona
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version    = 2022112800;
-$plugin->requires   = 2020010100; // Requires this Moodle version.
+$plugin->version    = 2025022700;
+$plugin->requires   = 2024100100; // Requires this Moodle version.
 $plugin->maturity   = MATURITY_STABLE;
 $plugin->component  = 'cachestore_redissentinel';

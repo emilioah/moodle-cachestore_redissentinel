@@ -25,10 +25,47 @@
 defined('MOODLE_INTERNAL') || die();
 
 $settings->add(
+    new admin_setting_configcheckbox(
+        name: 'cachestore_redissentinel/test_clustermode',
+        visiblename: get_string('clustermode', 'cachestore_redissentinel'),
+        description: cache_helper::is_cluster_available() ?
+            get_string('clustermode_help', 'cachestore_redissentinel') :
+            get_string('clustermodeunavailable', 'cachestore_redissentinel'),
+        defaultsetting: 0,
+    )
+);
+
+$settings->add(
+    new admin_setting_configcheckbox(
+        name: 'cachestore_redissentinel/test_sentinelmode',
+        visiblename: get_string('sentinelmode', 'cachestore_redissentinel'),
+        description: cache_helper::is_sentinel_available() ?
+            get_string('clustermode_help', 'cachestore_redissentinel') :
+            get_string('clustermodeunavailable', 'cachestore_redissentinel'),
+        defaultsetting: 0,
+    )
+);
+
+$settings->add(
+    new admin_setting_configtextarea(
+        name: 'cachestore_redissentinel/test_server',
+        visiblename: get_string('test_server', 'cachestore_redissentinel'),
+        description: get_string('test_server_desc', 'cachestore_redissentinel'),
+        defaultsetting: '',
+        paramtype: PARAM_TEXT,
+    )
+);
+
+$settings->add(new admin_setting_configcheckbox(
+        'cachestore_redis/test_encryption',
+        get_string('encrypt_connection', 'cachestore_redissentinel'),
+        get_string('encrypt_connection', 'cachestore_redissentinel'),
+        false));
+$settings->add(
     new admin_setting_configtext(
-        'cachestore_redissentinel/test_server',
-        get_string('test_server', 'cachestore_redissentinel'),
-        get_string('test_server_desc', 'cachestore_redissentinel'),
+        'cachestore_redissentinel/test_cafile',
+        get_string('ca_file', 'cachestore_redissentinel'),
+        get_string('ca_file', 'cachestore_redissentinel'),
         '',
         PARAM_TEXT,
         16

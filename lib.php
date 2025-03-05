@@ -208,25 +208,6 @@ class cachestore_redissentinel extends store implements
         if (array_key_exists('connectiontimeout', $configuration)) {
             $this->connectiontimeout = (int)$configuration['connectiontimeout'];
         }
-
-        $servers = explode(',',$configuration['server']);        
-        try {
-            $sentinel = new \sentinel($servers);            
-
-            $master = $sentinel->get_master_addr($configuration['master_group']);
-            $server = $master->ip.':'.$master->port;
-	    $configuration['server'] = $server;
-
-        } catch(Exception $e) {
-            debugging('Unable to connect to Redis Sentinel servers: '.$configuration['server'], DEBUG_ALL);
-            return;
-        }
-        if (array_key_exists('lockwait', $configuration)) {
-            $this->lockwait = (int)$configuration['lockwait'];
-        }
-        if (array_key_exists('locktimeout', $configuration)) {
-            $this->locktimeout = (int)$configuration['locktimeout'];
-        }
         $this->redis = $this->new_redis($configuration);
     }
 
@@ -252,7 +233,7 @@ class cachestore_redissentinel extends store implements
                     $port = 0;
                     $trimmedservers[] = $server;
                 } else {
-                    $port = 6379; // No Unix socket so set default port.
+                    $port = ($sentinelmode)?26379:6379; // No Unix socket so set default port.
                     if (strpos($server, ':')) { // Check for custom port.
                         list($server, $port) = explode(':', $server);
                     }
@@ -263,7 +244,7 @@ class cachestore_redissentinel extends store implements
                 }
 
                 // We only need the first record for the single redis.
-                if (!$clustermode) {
+                if (!$clustermode && !$sentinelmode) {
                     // Handle the case when the server is not a Unix domain socket.
                     if ($port !== 0) {
                         // We only need the first record for the single redis.
@@ -318,15 +299,15 @@ class cachestore_redissentinel extends store implements
                         !empty($opts) ? $opts : null,
                     );
                 }
-            } else if ($sentinelmode) {
-        	try {
-            		$sentinel = new \sentinel($trimmedservers);
-            		$master = $sentinel->get_master_addr($configuration['master_group']);
-        	} catch(Exception $e) {
-            		debugging('Unable to connect to Redis Sentinel servers: '.$configuration['server'], DEBUG_ALL);
-            		return;
-        	}
-		$redis = new Redis();
+        } else if ($sentinelmode) {
+            try {
+                    $sentinel = new \sentinel($trimmedservers);
+                    $master = $sentinel->get_master_addr($configuration['master_group']);
+            } catch(Exception $e) {
+                    debugging('Unable to connect to Redis Sentinel servers: '.$configuration['server'], DEBUG_ALL);
+                    return null;
+            }
+        $redis = new Redis();
                 if (version_compare($phpredisversion, '6.0.0', '>=')) {
                     // Named parameters are fully supported starting from version 6.0.0.
                     $redis->connect(
@@ -961,7 +942,11 @@ class cachestore_redissentinel extends store implements
         }
         if (!empty($config['clustermode'])) {
             $data['clustermode'] = $config['clustermode'];
+    }
+        if (!empty($config['sentinelmode'])) {
+            $data['sentinelmode'] = $config['sentinelmode'];
         }
+
         $editform->set_data($data);
     }
 

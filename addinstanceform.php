@@ -27,12 +27,16 @@ class cachestore_redissentinel_addinstance_form extends cachestore_addinstance_f
     protected function configuration_definition() {
         $form = $this->_form;
 
-        $form->addElement('advcheckbox', 'clustermode', get_string('clustermode', 'cachestore_redis'), '',
+        $form->addElement('advcheckbox', 'clustermode', get_string('clustermode', 'cachestore_redissentinel'), '',
             cache_helper::is_cluster_available() ? '' : 'disabled');
-        $form->addHelpButton('clustermode', 'clustermode', 'cachestore_redis');
+        $form->addHelpButton('clustermode', 'clustermode', 'cachestore_redissentinel');
         $form->setType('clustermode', PARAM_BOOL);
 
-        $form->addElement('textarea', 'server', get_string('server', 'cachestore_redissentinel'), ['cols' => 6, 'rows' => 10);
+        $form->addElement('advcheckbox', 'sentinelmode', get_string('sentinelmode', 'cachestore_redissentinel'), '', '');
+        $form->addHelpButton('sentinelmode', 'sentinelmode', 'cachestore_redissentinel');
+        $form->setType('sentinelmode', PARAM_BOOL);
+
+        $form->addElement('textarea', 'server', get_string('server', 'cachestore_redissentinel'), ['cols' => 6, 'rows' => 10]);
         $form->setType('server', PARAM_TEXT);
         $form->addHelpButton('server', 'server', 'cachestore_redissentinel');
         $form->addRule('server', get_string('required'), 'required');
@@ -73,7 +77,7 @@ class cachestore_redissentinel_addinstance_form extends cachestore_addinstance_f
         $form->setDefault('compressor', cachestore_redissentinel::COMPRESSOR_NONE);
         $form->setType('compressor', PARAM_INT);
 
-        $form->addElement('text', 'connectiontimeout', get_string('connectiontimeout', 'cachestore_redisentinel'));
+        $form->addElement('text', 'connectiontimeout', get_string('connectiontimeout', 'cachestore_redissentinel'));
         $form->addHelpButton('connectiontimeout', 'connectiontimeout', 'cachestore_redissentinel');
         $form->setDefault('connectiontimeout', cachestore_redissentinel::CONNECTION_TIMEOUT);
         $form->setType('connectiontimeout', PARAM_INT);

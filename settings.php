@@ -39,9 +39,7 @@ $settings->add(
     new admin_setting_configcheckbox(
         name: 'cachestore_redissentinel/test_sentinelmode',
         visiblename: get_string('sentinelmode', 'cachestore_redissentinel'),
-        description: cache_helper::is_sentinel_available() ?
-            get_string('clustermode_help', 'cachestore_redissentinel') :
-            get_string('clustermodeunavailable', 'cachestore_redissentinel'),
+        description: get_string('sentinelmode_desc', 'cachestore_redissentinel'),
         defaultsetting: 0,
     )
 );

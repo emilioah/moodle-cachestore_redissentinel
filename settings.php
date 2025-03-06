@@ -23,24 +23,16 @@
  */
 
 defined('MOODLE_INTERNAL') || die();
+require_once(__DIR__ . '/lib.php');
 
-$settings->add(
-    new admin_setting_configcheckbox(
-        name: 'cachestore_redissentinel/test_clustermode',
-        visiblename: get_string('clustermode', 'cachestore_redissentinel'),
-        description: cache_helper::is_cluster_available() ?
-            get_string('clustermode_help', 'cachestore_redissentinel') :
-            get_string('clustermodeunavailable', 'cachestore_redissentinel'),
-        defaultsetting: 0,
-    )
-);
 
-$settings->add(
-    new admin_setting_configcheckbox(
-        name: 'cachestore_redissentinel/test_sentinelmode',
-        visiblename: get_string('sentinelmode', 'cachestore_redissentinel'),
-        description: get_string('sentinelmode_desc', 'cachestore_redissentinel'),
-        defaultsetting: 0,
+$haoptions = cachestore_redissentinel::config_get_ha_options();
+$settings->add(new admin_setting_configselect(
+        'cachestore_redissentinel/test_ha',
+        get_string('test_ha', 'cachestore_redissentinel'),
+        get_string('test_ha_desc', 'cachestore_redissentinel'),
+        cachestore_redissentinel::HA_NONE,
+        $haoptions
     )
 );
 

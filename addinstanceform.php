@@ -27,14 +27,11 @@ class cachestore_redissentinel_addinstance_form extends cachestore_addinstance_f
     protected function configuration_definition() {
         $form = $this->_form;
 
-        $form->addElement('advcheckbox', 'clustermode', get_string('clustermode', 'cachestore_redissentinel'), '',
-            cache_helper::is_cluster_available() ? '' : 'disabled');
-        $form->addHelpButton('clustermode', 'clustermode', 'cachestore_redissentinel');
-        $form->setType('clustermode', PARAM_BOOL);
-
-        $form->addElement('advcheckbox', 'sentinelmode', get_string('sentinelmode', 'cachestore_redissentinel'), '', '');
-        $form->addHelpButton('sentinelmode', 'sentinelmode', 'cachestore_redissentinel');
-        $form->setType('sentinelmode', PARAM_BOOL);
+        $haoptions = cachestore_redissentinel::config_get_ha_options();
+        $form->addElement('select', 'ha', get_string('ha', 'cachestore_redissentinel'), $haoptions);
+        $form->addHelpButton('ha', 'ha', 'cachestore_redissentinel');
+        $form->setDefault('ha', cachestore_redissentinel::HA_NONE);
+        $form->setType('ha', PARAM_INT);
 
         $form->addElement('textarea', 'server', get_string('server', 'cachestore_redissentinel'), ['cols' => 6, 'rows' => 10]);
         $form->setType('server', PARAM_TEXT);

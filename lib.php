@@ -56,6 +56,21 @@ class cachestore_redissentinel extends store implements
     const COMPRESSOR_PHP_ZSTD = 2;
 
     /**
+     * HA: none.
+     */
+    const HA_NONE = 0;
+
+    /**
+     * HA: Redis Cluster.
+     */
+    const HA_CLUSTER = 1;
+
+    /**
+     * HA: Redis Sentinel.
+     */
+    const HA_SENTINEL = 2;
+
+    /**
      * @var string Suffix used on key name (for hash) to store the TTL sorted list
      */
     const TTL_SUFFIX = '_ttl';
@@ -219,8 +234,7 @@ class cachestore_redissentinel extends store implements
      */
     protected function new_redis(array $configuration): Redis|RedisCluster|null {
         $encrypt = (bool) ($configuration['encryption'] ?? false);
-        $clustermode = (bool) ($configuration['clustermode'] ?? false);
-        $sentinelmode = (bool) ($configuration['sentinelmode'] ?? false);
+        $hamode = (int) ($configuration['ha'] ?? 0);
         $password = !empty($configuration['password']) ? $configuration['password'] : '';
 
         // Set Redis server(s).
@@ -233,18 +247,18 @@ class cachestore_redissentinel extends store implements
                     $port = 0;
                     $trimmedservers[] = $server;
                 } else {
-                    $port = ($sentinelmode)?26379:6379; // No Unix socket so set default port.
+                    $port = ($hamode == self::HA_SENTINEL)?26379:6379; // No Unix socket so set default port.
                     if (strpos($server, ':')) { // Check for custom port.
                         list($server, $port) = explode(':', $server);
                     }
-                    if (!$clustermode && $encrypt) {
+                    if ( ($hamode == self::HA_NONE) && $encrypt) {
                         $server = 'tls://' . $server;
                     }
                     $trimmedservers[] = $server.':'.$port;
                 }
 
                 // We only need the first record for the single redis.
-                if (!$clustermode && !$sentinelmode) {
+                if ($hamode == self::HA_NONE) {
                     // Handle the case when the server is not a Unix domain socket.
                     if ($port !== 0) {
                         // We only need the first record for the single redis.
@@ -260,7 +274,7 @@ class cachestore_redissentinel extends store implements
         }
 
         // TLS/SSL Configuration.
-        $exceptionclass = $clustermode ? 'RedisClusterException' : 'RedisException';
+        $exceptionclass = ($hamode == self::HA_CLUSTER) ? 'RedisClusterException' : 'RedisException';
         $opts = [];
         if ($encrypt) {
             $opts = empty($configuration['cafile']) ?
@@ -268,7 +282,7 @@ class cachestore_redissentinel extends store implements
                 ['cafile' => $configuration['cafile']];
 
             // For a single (non-cluster) Redis, the TLS/SSL config must be added to the 'stream' key.
-            if (!$clustermode) {
+            if ($hamode == self::HA_NONE) {
                 $opts['stream'] = $opts;
             }
         }
@@ -277,7 +291,7 @@ class cachestore_redissentinel extends store implements
         try {
             // Create a $redis object of a RedisCluster or Redis class.
             $phpredisversion = phpversion('redis');
-            if ($clustermode && !$sentinelmode ) {
+            if ($hamode == self::HA_CLUSTER) {
                 if (version_compare($phpredisversion, '6.0.0', '>=')) {
                     // Named parameters are fully supported starting from version 6.0.0.
                     $redis = new RedisCluster(
@@ -299,15 +313,15 @@ class cachestore_redissentinel extends store implements
                         !empty($opts) ? $opts : null,
                     );
                 }
-        } else if ($sentinelmode) {
-            try {
+            } else if ($hamode == self::HA_SENTINEL) {
+                try {
                     $sentinel = new \sentinel($trimmedservers);
                     $master = $sentinel->get_master_addr($configuration['master_group']);
-            } catch(Exception $e) {
+                } catch(Exception $e) {
                     debugging('Unable to connect to Redis Sentinel servers: '.$configuration['server'], DEBUG_ALL);
                     return null;
-            }
-        $redis = new Redis();
+                }
+                $redis = new Redis();
                 if (version_compare($phpredisversion, '6.0.0', '>=')) {
                     // Named parameters are fully supported starting from version 6.0.0.
                     $redis->connect(
@@ -328,7 +342,6 @@ class cachestore_redissentinel extends store implements
                         $opts,
                     );
                 }
-
                 if (!empty($password)) {
                     $redis->auth($password);
                 }
@@ -355,7 +368,6 @@ class cachestore_redissentinel extends store implements
                         $opts,
                     );
                 }
-
                 if (!empty($password)) {
                     $redis->auth($password);
                 }
@@ -367,12 +379,10 @@ class cachestore_redissentinel extends store implements
             if ($encrypt && !$redis->ping('Ping')) {
                 throw new $exceptionclass("Ping failed");
             }
-
             // If using compressor, serialisation will be done at cachestore level, not php-redis.
             if ($this->compressor === self::COMPRESSOR_NONE) {
                 $redis->setOption(Redis::OPT_SERIALIZER, $this->serializer);
             }
-
             // Set the prefix.
             $prefix = !empty($configuration['prefix']) ? $configuration['prefix'] : '';
             if (!empty($prefix)) {
@@ -380,11 +390,10 @@ class cachestore_redissentinel extends store implements
             }
             $this->isready = true;
         } catch (RedisException | RedisClusterException $e) {
-            $server = $clustermode ? implode(',', $trimmedservers) : $server.':'.$port;
+            $server = ($hamode != self::HA_NONE) ? implode(',', $trimmedservers) : $server.':'.$port;
             debugging("Failed to connect to Redis at {$server}, the error returned was: {$e->getMessage()}");
             $this->isready = false;
         }
-
         return $redis;
     }
 
@@ -899,6 +908,7 @@ class cachestore_redissentinel extends store implements
     public static function config_get_configuration_array($data) {
         return array(
             'server' => $data->server,
+            'ha' => $data->ha,
             'prefix' => $data->prefix,
             'password' => $data->password,
             'serializer' => $data->serializer,
@@ -906,9 +916,7 @@ class cachestore_redissentinel extends store implements
             'master_group' => $data->master_group,
             'connectiontimeout' => $data->connectiontimeout,
             'encryption' => $data->encryption,
-            'cafile' => $data->cafile,
-            'clustermode' => $data->clustermode,
-            'sentinelmode' => $data->sentinelmode,
+            'cafile' => $data->cafile,                        
         );
     }
 
@@ -920,10 +928,13 @@ class cachestore_redissentinel extends store implements
      * @param array $config
      */
     public static function config_set_edit_form_data(moodleform $editform, array $config) {
-        $data = array();
+        $data = array();        
         $data['server'] = $config['server'];
+        if (!empty($config['ha'])) {
+            $data['ha'] = $config['ha'];
+        }
         $data['prefix'] = !empty($config['prefix']) ? $config['prefix'] : '';
-        $data['password'] = !empty($config['password']) ? $config['password'] : '';
+        $data['password'] = !empty($config['password']) ? $config['password'] : '';        
         if (!empty($config['serializer'])) {
             $data['serializer'] = $config['serializer'];
         }
@@ -940,13 +951,6 @@ class cachestore_redissentinel extends store implements
         if (!empty($config['cafile'])) {
             $data['cafile'] = $config['cafile'];
         }
-        if (!empty($config['clustermode'])) {
-            $data['clustermode'] = $config['clustermode'];
-    }
-        if (!empty($config['sentinelmode'])) {
-            $data['sentinelmode'] = $config['sentinelmode'];
-        }
-
         $editform->set_data($data);
     }
 
@@ -966,6 +970,9 @@ class cachestore_redissentinel extends store implements
             return false;
         }
         $configuration = array('server' => $config->test_server);
+        if (!empty($config->test_ha)) {
+            $configuration['ha'] = $config->test_ha;
+        }
         if (!empty($config->test_serializer)) {
             $configuration['serializer'] = $config->test_serializer;
         }
@@ -977,12 +984,6 @@ class cachestore_redissentinel extends store implements
         }
         if (!empty($config->test_cafile)) {
             $configuration['cafile'] = $config->test_cafile;
-        }
-        if (!empty($config->test_clustermode)) {
-            $configuration['clustermode'] = $config->test_clustermode;
-        }
-        if (!empty($config->test_sentinelmode)) {
-            $configuration['sentinelmode'] = $config->test_sentinelmode;
         }
         if (!empty($config->test_master_group)) {
             $configuration['master_group'] = $config->test_master_group;
@@ -1058,6 +1059,29 @@ class cachestore_redissentinel extends store implements
         // Check if the Zstandard PHP extension is installed.
         if (extension_loaded('zstd')) {
             $arr[self::COMPRESSOR_PHP_ZSTD] = get_string('compressor_php_zstd', 'cachestore_redissentinel');
+        }
+
+        return $arr;
+    }
+
+    /**
+     * Gets an array of options to use as the compressor.
+     *
+     * @return array
+     */
+    public static function config_get_ha_options() {
+        
+        if (cache_helper::is_cluster_available())
+            $arr = [
+                self::HA_NONE     => get_string('ha_none', 'cachestore_redissentinel'),
+                self::HA_CLUSTER  => get_string('ha_cluster', 'cachestore_redissentinel'),
+                self::HA_SENTINEL => get_string('ha_sentinel', 'cachestore_redissentinel'),
+            ];
+        else{
+            $arr = [
+                self::HA_NONE     => get_string('ha_none', 'cachestore_redissentinel'),
+                self::HA_SENTINEL => get_string('ha_sentinel', 'cachestore_redissentinel'),
+            ];        
         }
 
         return $arr;

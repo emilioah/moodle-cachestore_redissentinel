@@ -26,8 +26,6 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['ca_file'] = 'CA file path';
 $string['ca_file_help'] = 'Location of Certificate Authority file on local filesystem';
-$string['clustermode'] = 'Cluster mode';
-$string['clustermode_help'] = 'Enabling cluster mode will run the Redis Cluster function, allowing your server to serve multiple servers to handle concurrent requests simultaneously.';
 $string['clustermodeunavailable'] = 'Redis Cluster is currently unavailable. Please ensure that the PHP Redis extension supports Redis Cluster functionality.';
 $string['compressor_none'] = 'No compression.';
 $string['compressor_php_gzip'] = 'Use gzip compression.';
@@ -99,9 +97,13 @@ $string['useserializer'] = 'Use serializer';
 $string['useserializer_help'] = 'Specifies the serializer to use for serializing.
 The valid serializers are Redis::SERIALIZER_PHP or Redis::SERIALIZER_IGBINARY.
 The latter is supported only when phpredis is configured with --enable-redis-igbinary option and the igbinary extension is loaded.';
-$string['sentinelmode'] = 'Sentinel Mode';
-$string['sentinelmode_desc'] = 'Use redis sentinel for HA';
-$string['sentinelmode_help'] = 'Use redis sentinel for HA';
 $string['master_group'] = 'Sentinel Group';
 $string['test_master_group'] = 'Test Sentinel Group';
 $string['test_master_group_desc'] = 'Test Sentinel Group for testing';
+$string['ha'] = 'High Availability Options';
+$string['ha_help'] = 'Use standalone redis server, or HA with Cluster or Sentinel';
+$string['ha_none'] = 'Use standalone redis server';
+$string['ha_cluster'] = 'Use Redis Cluster';
+$string['ha_sentinel'] = 'Use Redis Sentinel';
+$string['test_ha'] = "Testing HA configuration";
+$string['test_ha_desc'] = "Testing Redis HA configuration: Standalone / Cluster /Sentinel";

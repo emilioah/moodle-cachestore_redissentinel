@@ -20,7 +20,7 @@ use core_cache\key_aware_cache_interface;
 use core_cache\lockable_cache_interface;
 use core_cache\searchable_cache_interface;
 use core_cache\store;
-require_once('sentinel.php');
+use cachestore_redissentinel\sentinel;
 
 /**
  * Redis Cache Store
@@ -315,7 +315,7 @@ class cachestore_redissentinel extends store implements
                 }
             } else if ($hamode == self::HA_SENTINEL) {
                 try {
-                    $sentinel = new \sentinel($trimmedservers);
+                    $sentinel = new sentinel($trimmedservers);
                     $master = $sentinel->get_master_addr($configuration['master_group']);
                 } catch(Exception $e) {
                     debugging('Unable to connect to Redis Sentinel servers: '.$configuration['server'], DEBUG_ALL);

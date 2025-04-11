@@ -192,16 +192,20 @@ class cachestore_redissentinel extends cache_store implements cache_is_key_aware
             $this->compressor = (int)$configuration['compressor'];
         }
         
-        $servers = explode(',',$configuration['server']);        
-        try {
-            $sentinel = new \sentinel($servers);            
+        $servers = explode(',',$configuration['server']);
+        if (count($servers)>1){
+            try {
+                $sentinel = new \sentinel($servers);            
 
-            $master = $sentinel->get_master_addr($configuration['master_group']);
-            $server = $master->ip.':'.$master->port;   
+                $master = $sentinel->get_master_addr($configuration['master_group']);
+                $server = $master->ip.':'.$master->port;   
 
-        } catch(Exception $e) {
-            debugging('Unable to connect to Redis Sentinel servers: '.$configuration['server'], DEBUG_ALL);
-            return;
+            } catch(Exception $e) {
+                debugging('Unable to connect to Redis Sentinel servers: '.$configuration['server'], DEBUG_ALL);
+                return;
+            }
+        }else{
+            $server = $servers[0];
         }
 
         $password = !empty($configuration['password']) ? $configuration['password'] : '';
